@@ -2,26 +2,48 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { UserPlus } from "lucide-react";
 
 interface ShareListFormProps {
   listId: number;
   onSuccess: () => void;
 }
 
+// Form validation schema
+const formSchema = z.object({
+  username: z.string().min(1, "Username is required"),
+});
+
+type FormValues = z.infer<typeof formSchema>;
+
 export default function ShareListForm({ listId, onSuccess }: ShareListFormProps) {
   const { toast } = useToast();
-  const [username, setUsername] = useState("");
+  
+  // Initialize form
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      username: "",
+    },
+  });
   
   const shareMutation = useMutation({
-    mutationFn: async (username: string) => {
-      await apiRequest("POST", `/api/gift-lists/${listId}/share`, { username });
+    mutationFn: async (values: FormValues) => {
+      await apiRequest("POST", `/api/gift-lists/${listId}/share`, { username: values.username });
     },
     onSuccess: () => {
       toast({
         title: "Success",
         description: "Gift list shared successfully",
       });
-      setUsername("");
+      form.reset();
       onSuccess();
     },
     onError: (error) => {
@@ -33,48 +55,64 @@ export default function ShareListForm({ listId, onSuccess }: ShareListFormProps)
     },
   });
   
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (username.trim()) {
-      shareMutation.mutate(username);
-    }
+  const onSubmit = (values: FormValues) => {
+    shareMutation.mutate(values);
   };
   
   return (
     <div>
-      <h2 className="text-lg font-bold mb-4">Share Gift List</h2>
-      <p className="text-gray-500 mb-4">Enter the username of the person you want to share this list with.</p>
+      <DialogHeader>
+        <DialogTitle>Share Gift List</DialogTitle>
+        <DialogDescription>
+          Enter the username of the person you want to share this list with.
+        </DialogDescription>
+      </DialogHeader>
       
-      <form onSubmit={handleSubmit}>
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-          <input 
-            type="text" 
-            className="w-full rounded-lg border border-gray-200 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-            placeholder="Enter username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-          />
-        </div>
-        
-        <div className="flex justify-end space-x-2 mt-6">
-          <button 
-            type="button" 
-            className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            onClick={onSuccess}
-          >
-            Cancel
-          </button>
-          <button 
-            type="submit" 
-            className="px-4 py-2 rounded-lg bg-primary text-sm font-medium text-white hover:bg-primary-600"
-            disabled={shareMutation.isPending}
-          >
-            {shareMutation.isPending ? "Sharing..." : "Share List"}
-          </button>
-        </div>
-      </form>
+      <div className="py-4">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="username"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Username</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="Enter username to share with" 
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <div className="flex justify-end space-x-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onSuccess}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={shareMutation.isPending}
+              >
+                {shareMutation.isPending ? (
+                  "Sharing..."
+                ) : (
+                  <>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Share List
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </div>
     </div>
   );
 }

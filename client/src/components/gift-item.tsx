@@ -17,6 +17,64 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import GiftItemForm from "./gift-item-form";
 
+// Get icon based on category (simplified example)
+// Function to generate category icons
+function generateCategoryIcon(category?: string | null) {
+  if (!category) return undefined;
+  
+  switch (category.toLowerCase()) {
+    case "electronics":
+      return (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+        </svg>
+      );
+    case "books":
+      return (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+      );
+    case "clothing":
+      return (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+        </svg>
+      );
+    default:
+      return (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+        </svg>
+      );
+  }
+}
+
+// A component that handles image loading errors
+interface ImageWithFallbackProps {
+  src: string;
+  alt: string;
+  category?: string | null;
+}
+
+function ImageWithFallback({ src, alt, category }: ImageWithFallbackProps) {
+  const [error, setError] = useState(false);
+  
+  if (error) {
+    // If there was an error loading the image, show the category icon instead
+    return generateCategoryIcon(category);
+  }
+  
+  return (
+    <img 
+      src={src} 
+      alt={alt}
+      className="w-full h-full object-cover"
+      onError={() => setError(true)}
+    />
+  );
+}
+
 interface GiftItemProps {
   item: GiftItemType;
   isOwner: boolean;
@@ -112,38 +170,6 @@ export default function GiftItem({ item, isOwner, listId }: GiftItemProps) {
     }
   };
   
-  // Get icon based on category (simplified example)
-  const getCategoryIcon = (category?: string | null) => {
-    if (!category) return undefined;
-    
-    switch (category.toLowerCase()) {
-      case "electronics":
-        return (
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-          </svg>
-        );
-      case "books":
-        return (
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-          </svg>
-        );
-      case "clothing":
-        return (
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-          </svg>
-        );
-      default:
-        return (
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-          </svg>
-        );
-    }
-  };
-  
   // Format for is claimed
   const isClaimed = !!item.claimedBy;
   
@@ -151,22 +177,13 @@ export default function GiftItem({ item, isOwner, listId }: GiftItemProps) {
     <div className={`gift-item ${isClaimed ? 'bg-gray-50' : 'bg-white'} rounded-lg border border-gray-100 p-4 flex items-start gift-item-shadow ${!isClaimed ? 'gift-item-hover' : ''} transition-all duration-200`}>
       <div className={`w-16 h-16 rounded-lg ${isClaimed ? 'bg-gray-200' : 'bg-gray-100'} flex items-center justify-center flex-shrink-0 mr-4 relative overflow-hidden`}>
         {item.imageUrl ? (
-          <img 
+          <ImageWithFallback 
             src={item.imageUrl} 
             alt={item.name}
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.src = ""; // Clear the src to avoid repeated errors
-              target.style.display = "none"; // Hide the img element
-              const parent = target.parentElement;
-              if (parent) {
-                parent.appendChild(getCategoryIcon(item.category) as Node);
-              }
-            }}
+            category={item.category}
           />
         ) : (
-          getCategoryIcon(item.category)
+          generateCategoryIcon(item.category)
         )}
         {isClaimed && (
           <div className="absolute -top-2 -right-2 bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center">
