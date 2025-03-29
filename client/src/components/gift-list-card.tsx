@@ -11,7 +11,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
@@ -189,6 +190,9 @@ export default function GiftListCard({ list, isShared = false }: GiftListCardPro
       {/* Edit List Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
+          <VisuallyHidden>
+            <DialogTitle>Edit Gift List</DialogTitle>
+          </VisuallyHidden>
           <GiftListForm 
             list={list}
             onSuccess={() => setEditDialogOpen(false)}
@@ -199,6 +203,9 @@ export default function GiftListCard({ list, isShared = false }: GiftListCardPro
       {/* Share List Dialog */}
       <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
+          <VisuallyHidden>
+            <DialogTitle>Share Gift List</DialogTitle>
+          </VisuallyHidden>
           <ShareListForm 
             listId={list.id}
             onSuccess={() => setShareDialogOpen(false)}
