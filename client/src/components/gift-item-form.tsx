@@ -22,6 +22,7 @@ const formSchema = insertGiftItemSchema.omit({ position: true }).extend({
     required_error: "Please select a priority",
   }),
   link: z.string().url("Please enter a valid URL").optional().or(z.literal("")),
+  imageUrl: z.string().url("Please enter a valid image URL").optional().or(z.literal("")),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -46,6 +47,7 @@ export default function GiftItemForm({ listId, item, onSuccess }: GiftItemFormPr
       category: item?.category || "",
       priority: (item?.priority as "high" | "medium" | "low") || "medium",
       link: item?.link || "",
+      imageUrl: item?.imageUrl || "",
     },
   });
   
@@ -102,10 +104,11 @@ export default function GiftItemForm({ listId, item, onSuccess }: GiftItemFormPr
   
   // Handle form submission
   const onSubmit = (values: FormValues) => {
-    // Normalize empty strings to undefined for optional URL
+    // Normalize empty strings to undefined for optional URLs
     const normalizedValues = {
       ...values,
       link: values.link === "" ? undefined : values.link,
+      imageUrl: values.imageUrl === "" ? undefined : values.imageUrl,
     };
     
     if (isEditMode) {
@@ -222,22 +225,41 @@ export default function GiftItemForm({ listId, item, onSuccess }: GiftItemFormPr
             )}
           />
           
-          <FormField
-            control={form.control}
-            name="link"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Link (Optional)</FormLabel>
-                <FormControl>
-                  <Input
-                    placeholder="https://"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="link"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Link (Optional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="https://"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="imageUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Image URL (Optional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="https://example.com/image.jpg"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
           
           <FormField
             control={form.control}

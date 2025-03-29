@@ -29,6 +29,7 @@ export const giftItems = pgTable("gift_items", {
   category: text("category"),
   priority: text("priority").default("medium"),
   link: text("link"),
+  imageUrl: text("image_url"),
   claimedBy: integer("claimed_by"),
   claimedAt: timestamp("claimed_at"),
   position: integer("position").default(0),
@@ -66,6 +67,7 @@ export const insertGiftItemSchema = createInsertSchema(giftItems).pick({
   category: true,
   priority: true,
   link: true,
+  imageUrl: true,
   position: true,
 });
 

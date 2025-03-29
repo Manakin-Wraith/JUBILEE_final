@@ -12,7 +12,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import GiftItem from "@/components/gift-item";
 import GiftItemForm from "@/components/gift-item-form";
 import GiftListForm from "@/components/gift-list-form";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogTitle,
+  DialogDescription,
+  DialogHeader
+} from "@/components/ui/dialog";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -329,6 +335,12 @@ export default function ListDetail() {
       {/* Item Form Dialog */}
       <Dialog open={itemFormOpen} onOpenChange={setItemFormOpen}>
         <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>{list?.title ? `Add Item to ${list.title}` : 'Add Gift Item'}</DialogTitle>
+            <DialogDescription>
+              Add a new gift item to your wishlist. Fill out the form below with the details of the gift you'd like to receive.
+            </DialogDescription>
+          </DialogHeader>
           <GiftItemForm 
             listId={listId}
             onSuccess={() => setItemFormOpen(false)}
@@ -339,6 +351,12 @@ export default function ListDetail() {
       {/* List Edit Form Dialog */}
       <Dialog open={listFormOpen} onOpenChange={setListFormOpen}>
         <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Edit Gift List</DialogTitle>
+            <DialogDescription>
+              Make changes to your gift list details. Click save when you're done.
+            </DialogDescription>
+          </DialogHeader>
           <GiftListForm 
             list={list}
             onSuccess={() => setListFormOpen(false)}

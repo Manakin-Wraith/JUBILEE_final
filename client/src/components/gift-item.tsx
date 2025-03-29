@@ -5,7 +5,13 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Pencil, Trash2, ExternalLink, Gift, GripVertical } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogTitle,
+  DialogDescription,
+  DialogHeader
+} from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -22,6 +28,7 @@ export default function GiftItem({ item, isOwner, listId }: GiftItemProps) {
   const { toast } = useToast();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [claimDialogOpen, setClaimDialogOpen] = useState(false);
   
   // Determine if the current user claimed this item
   const isClaimedByCurrentUser = item.claimedBy === user?.id;
@@ -106,8 +113,8 @@ export default function GiftItem({ item, isOwner, listId }: GiftItemProps) {
   };
   
   // Get icon based on category (simplified example)
-  const getCategoryIcon = (category?: string) => {
-    if (!category) return null;
+  const getCategoryIcon = (category?: string | null) => {
+    if (!category) return undefined;
     
     switch (category.toLowerCase()) {
       case "electronics":
@@ -142,8 +149,25 @@ export default function GiftItem({ item, isOwner, listId }: GiftItemProps) {
   
   return (
     <div className={`gift-item ${isClaimed ? 'bg-gray-50' : 'bg-white'} rounded-lg border border-gray-100 p-4 flex items-start gift-item-shadow ${!isClaimed ? 'gift-item-hover' : ''} transition-all duration-200`}>
-      <div className={`w-16 h-16 rounded-lg ${isClaimed ? 'bg-gray-200' : 'bg-gray-100'} flex items-center justify-center flex-shrink-0 mr-4 relative`}>
-        {getCategoryIcon(item.category)}
+      <div className={`w-16 h-16 rounded-lg ${isClaimed ? 'bg-gray-200' : 'bg-gray-100'} flex items-center justify-center flex-shrink-0 mr-4 relative overflow-hidden`}>
+        {item.imageUrl ? (
+          <img 
+            src={item.imageUrl} 
+            alt={item.name}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = ""; // Clear the src to avoid repeated errors
+              target.style.display = "none"; // Hide the img element
+              const parent = target.parentElement;
+              if (parent) {
+                parent.appendChild(getCategoryIcon(item.category) as Node);
+              }
+            }}
+          />
+        ) : (
+          getCategoryIcon(item.category)
+        )}
         {isClaimed && (
           <div className="absolute -top-2 -right-2 bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -252,7 +276,7 @@ export default function GiftItem({ item, isOwner, listId }: GiftItemProps) {
             <Button
               size="sm"
               className="claim-button bg-primary hover:bg-primary-600 text-white"
-              onClick={() => claimMutation.mutate()}
+              onClick={() => setClaimDialogOpen(true)}
               disabled={claimMutation.isPending}
             >
               <Gift className="h-3 w-3 mr-1" />
@@ -282,6 +306,12 @@ export default function GiftItem({ item, isOwner, listId }: GiftItemProps) {
       {/* Edit Item Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Edit Gift Item</DialogTitle>
+            <DialogDescription>
+              Make changes to the gift item details. Click save when you're done.
+            </DialogDescription>
+          </DialogHeader>
           <GiftItemForm 
             listId={listId}
             item={item}
@@ -309,6 +339,31 @@ export default function GiftItem({ item, isOwner, listId }: GiftItemProps) {
               }}
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Claim Confirmation Dialog */}
+      <AlertDialog open={claimDialogOpen} onOpenChange={setClaimDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Claim this gift?</AlertDialogTitle>
+            <AlertDialogDescription>
+              By claiming this gift, you're letting others know that you'll be purchasing it. 
+              This helps prevent duplicate gifts. You can unclaim it later if you change your mind.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              className="bg-primary hover:bg-primary-600"
+              onClick={() => {
+                claimMutation.mutate();
+                setClaimDialogOpen(false);
+              }}
+            >
+              {claimMutation.isPending ? "Claiming..." : "Claim Gift"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
