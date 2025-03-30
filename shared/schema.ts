@@ -1,6 +1,7 @@
-import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, primaryKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { relations } from "drizzle-orm";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -10,9 +11,17 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
 });
 
+export const usersRelations = relations(users, ({ many }) => ({
+  lists: many(giftLists),
+  sharedLists: many(sharedLists, { relationName: "shared_with" }),
+  sharedByMe: many(sharedLists, { relationName: "shared_by" }),
+}));
+
 export const giftLists = pgTable("gift_lists", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   description: text("description"),
   type: text("type").notNull(),
@@ -20,9 +29,20 @@ export const giftLists = pgTable("gift_lists", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const giftListsRelations = relations(giftLists, ({ one, many }) => ({
+  user: one(users, {
+    fields: [giftLists.userId],
+    references: [users.id],
+  }),
+  items: many(giftItems),
+  shares: many(sharedLists),
+}));
+
 export const giftItems = pgTable("gift_items", {
   id: serial("id").primaryKey(),
-  listId: integer("list_id").notNull(),
+  listId: integer("list_id")
+    .notNull()
+    .references(() => giftLists.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   description: text("description"),
   price: text("price"),
@@ -30,18 +50,52 @@ export const giftItems = pgTable("gift_items", {
   priority: text("priority").default("medium"),
   link: text("link"),
   imageUrl: text("image_url"),
-  claimedBy: integer("claimed_by"),
+  claimedBy: integer("claimed_by").references(() => users.id, { onDelete: "set null" }),
   claimedAt: timestamp("claimed_at"),
   position: integer("position").default(0),
 });
 
+export const giftItemsRelations = relations(giftItems, ({ one }) => ({
+  list: one(giftLists, {
+    fields: [giftItems.listId],
+    references: [giftLists.id],
+  }),
+  claimedByUser: one(users, {
+    fields: [giftItems.claimedBy],
+    references: [users.id],
+  }),
+}));
+
 export const sharedLists = pgTable("shared_lists", {
   id: serial("id").primaryKey(),
-  listId: integer("list_id").notNull(),
-  userId: integer("user_id").notNull(),
-  sharedBy: integer("shared_by").notNull(),
+  listId: integer("list_id")
+    .notNull()
+    .references(() => giftLists.id, { onDelete: "cascade" }),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  sharedBy: integer("shared_by")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
   sharedAt: timestamp("shared_at").defaultNow(),
 });
+
+export const sharedListsRelations = relations(sharedLists, ({ one }) => ({
+  list: one(giftLists, {
+    fields: [sharedLists.listId],
+    references: [giftLists.id],
+  }),
+  user: one(users, {
+    fields: [sharedLists.userId],
+    references: [users.id],
+    relationName: "shared_with",
+  }),
+  sharedByUser: one(users, {
+    fields: [sharedLists.sharedBy],
+    references: [users.id],
+    relationName: "shared_by",
+  }),
+}));
 
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).pick({

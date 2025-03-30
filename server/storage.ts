@@ -6,9 +6,12 @@ import type {
   SharedList, InsertSharedList 
 } from "@shared/schema";
 import session from "express-session";
-import createMemoryStore from "memorystore";
+import { db } from "./db";
+import { eq, and, desc, isNull } from "drizzle-orm";
+import connectPg from "connect-pg-simple";
+import { pool } from "./db";
 
-const MemoryStore = createMemoryStore(session);
+const PostgresSessionStore = connectPg(session);
 
 // Interface with CRUD methods
 export interface IStorage {
@@ -42,217 +45,190 @@ export interface IStorage {
   deleteSharedList(id: number): Promise<boolean>;
   
   // Session store
-  sessionStore: session.SessionStore;
+  sessionStore: any;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private giftLists: Map<number, GiftList>;
-  private giftItems: Map<number, GiftItem>;
-  private sharedLists: Map<number, SharedList>;
-  
-  currentUserId: number;
-  currentGiftListId: number;
-  currentGiftItemId: number;
-  currentSharedListId: number;
-  sessionStore: session.SessionStore;
+export class DatabaseStorage implements IStorage {
+  sessionStore: any;
   
   constructor() {
-    this.users = new Map();
-    this.giftLists = new Map();
-    this.giftItems = new Map();
-    this.sharedLists = new Map();
-    
-    this.currentUserId = 1;
-    this.currentGiftListId = 1;
-    this.currentGiftItemId = 1;
-    this.currentSharedListId = 1;
-    
-    this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000,
+    this.sessionStore = new PostgresSessionStore({ 
+      pool, 
+      createTableIfMissing: true,
+      tableName: 'session'
     });
   }
   
   // User operations
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
   
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
   }
   
   async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.email === email
-    );
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
   }
   
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentUserId++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
   
   // Gift list operations
   async createGiftList(insertList: InsertGiftList): Promise<GiftList> {
-    const id = this.currentGiftListId++;
-    const createdAt = new Date();
-    const list: GiftList = { ...insertList, id, createdAt };
-    
-    this.giftLists.set(id, list);
+    const [list] = await db.insert(giftLists).values(insertList).returning();
     return list;
   }
   
   async getGiftList(id: number): Promise<GiftList | undefined> {
-    return this.giftLists.get(id);
+    const [list] = await db.select().from(giftLists).where(eq(giftLists.id, id));
+    return list;
   }
   
   async getGiftListsByUserId(userId: number): Promise<GiftList[]> {
-    return Array.from(this.giftLists.values()).filter(
-      (list) => list.userId === userId
-    );
+    return await db.select().from(giftLists).where(eq(giftLists.userId, userId));
   }
   
   async updateGiftList(id: number, listUpdates: Partial<GiftList>): Promise<GiftList | undefined> {
-    const list = this.giftLists.get(id);
-    if (!list) return undefined;
-    
-    const updatedList = { ...list, ...listUpdates };
-    this.giftLists.set(id, updatedList);
+    const [updatedList] = await db
+      .update(giftLists)
+      .set(listUpdates)
+      .where(eq(giftLists.id, id))
+      .returning();
     return updatedList;
   }
   
   async deleteGiftList(id: number): Promise<boolean> {
-    // Delete related gift items
-    const itemsToDelete = Array.from(this.giftItems.values()).filter(
-      (item) => item.listId === id
-    );
-    
-    for (const item of itemsToDelete) {
-      this.giftItems.delete(item.id);
+    try {
+      // Delete related gift items
+      await db.delete(giftItems).where(eq(giftItems.listId, id));
+      
+      // Delete related shared lists
+      await db.delete(sharedLists).where(eq(sharedLists.listId, id));
+      
+      // Delete the list itself
+      const result = await db.delete(giftLists).where(eq(giftLists.id, id)).returning({ id: giftLists.id });
+      return result.length > 0;
+    } catch (error) {
+      console.error("Error deleting gift list:", error);
+      return false;
     }
-    
-    // Delete related shared lists
-    const sharesToDelete = Array.from(this.sharedLists.values()).filter(
-      (share) => share.listId === id
-    );
-    
-    for (const share of sharesToDelete) {
-      this.sharedLists.delete(share.id);
-    }
-    
-    return this.giftLists.delete(id);
   }
   
   // Gift item operations
   async createGiftItem(insertItem: InsertGiftItem): Promise<GiftItem> {
-    const id = this.currentGiftItemId++;
-    const item: GiftItem = { ...insertItem, id, claimedBy: null, claimedAt: null };
-    
-    this.giftItems.set(id, item);
+    const [item] = await db.insert(giftItems).values(insertItem).returning();
     return item;
   }
   
   async getGiftItem(id: number): Promise<GiftItem | undefined> {
-    return this.giftItems.get(id);
+    const [item] = await db.select().from(giftItems).where(eq(giftItems.id, id));
+    return item;
   }
   
   async getGiftItemsByListId(listId: number): Promise<GiftItem[]> {
-    return Array.from(this.giftItems.values())
-      .filter((item) => item.listId === listId)
-      .sort((a, b) => a.position - b.position);
+    return await db
+      .select()
+      .from(giftItems)
+      .where(eq(giftItems.listId, listId))
+      .orderBy(giftItems.position);
   }
   
   async updateGiftItem(id: number, itemUpdates: Partial<GiftItem>): Promise<GiftItem | undefined> {
-    const item = this.giftItems.get(id);
-    if (!item) return undefined;
-    
-    const updatedItem = { ...item, ...itemUpdates };
-    this.giftItems.set(id, updatedItem);
+    const [updatedItem] = await db
+      .update(giftItems)
+      .set(itemUpdates)
+      .where(eq(giftItems.id, id))
+      .returning();
     return updatedItem;
   }
   
   async claimGiftItem(id: number, userId: number): Promise<GiftItem | undefined> {
-    const item = this.giftItems.get(id);
-    if (!item || item.claimedBy) return undefined;
-    
-    const claimedItem = { 
-      ...item, 
-      claimedBy: userId, 
-      claimedAt: new Date() 
-    };
-    
-    this.giftItems.set(id, claimedItem);
-    return claimedItem;
+    const [item] = await db
+      .update(giftItems)
+      .set({ 
+        claimedBy: userId, 
+        claimedAt: new Date() 
+      })
+      .where(and(
+        eq(giftItems.id, id),
+        isNull(giftItems.claimedBy)  // Only claim if not already claimed
+      ))
+      .returning();
+    return item;
   }
   
   async unclaimGiftItem(id: number): Promise<GiftItem | undefined> {
-    const item = this.giftItems.get(id);
-    if (!item) return undefined;
-    
-    const unclaimedItem = { 
-      ...item, 
-      claimedBy: null, 
-      claimedAt: null 
-    };
-    
-    this.giftItems.set(id, unclaimedItem);
-    return unclaimedItem;
+    const [item] = await db
+      .update(giftItems)
+      .set({ 
+        claimedBy: null, 
+        claimedAt: null 
+      })
+      .where(eq(giftItems.id, id))
+      .returning();
+    return item;
   }
   
   async deleteGiftItem(id: number): Promise<boolean> {
-    return this.giftItems.delete(id);
+    const result = await db.delete(giftItems).where(eq(giftItems.id, id)).returning({ id: giftItems.id });
+    return result.length > 0;
   }
   
   async updateGiftItemPositions(items: { id: number, position: number }[]): Promise<boolean> {
     try {
       for (const { id, position } of items) {
-        const item = this.giftItems.get(id);
-        if (item) {
-          this.giftItems.set(id, { ...item, position });
-        }
+        await db
+          .update(giftItems)
+          .set({ position })
+          .where(eq(giftItems.id, id));
       }
       return true;
     } catch (error) {
+      console.error("Error updating item positions:", error);
       return false;
     }
   }
   
   // Shared list operations
   async shareList(insertSharedList: InsertSharedList): Promise<SharedList> {
-    const id = this.currentSharedListId++;
-    const sharedAt = new Date();
-    const sharedList: SharedList = { ...insertSharedList, id, sharedAt };
-    
-    this.sharedLists.set(id, sharedList);
+    const [sharedList] = await db.insert(sharedLists).values(insertSharedList).returning();
     return sharedList;
   }
   
   async getSharedList(id: number): Promise<SharedList | undefined> {
-    return this.sharedLists.get(id);
+    const [sharedList] = await db.select().from(sharedLists).where(eq(sharedLists.id, id));
+    return sharedList;
   }
   
   async getSharedListsByUserId(userId: number): Promise<{ sharedList: SharedList, giftList: GiftList }[]> {
-    const userShares = Array.from(this.sharedLists.values()).filter(
-      (share) => share.userId === userId
-    );
+    const shares = await db.select().from(sharedLists).where(eq(sharedLists.userId, userId));
     
-    return userShares.map(share => {
-      const giftList = this.giftLists.get(share.listId);
-      return {
-        sharedList: share,
-        giftList: giftList!
-      };
-    }).filter(item => item.giftList !== undefined);
+    const result: { sharedList: SharedList, giftList: GiftList }[] = [];
+    
+    for (const share of shares) {
+      const [list] = await db.select().from(giftLists).where(eq(giftLists.id, share.listId));
+      if (list) {
+        result.push({
+          sharedList: share,
+          giftList: list
+        });
+      }
+    }
+    
+    return result;
   }
   
   async deleteSharedList(id: number): Promise<boolean> {
-    return this.sharedLists.delete(id);
+    const result = await db.delete(sharedLists).where(eq(sharedLists.id, id)).returning({ id: sharedLists.id });
+    return result.length > 0;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
