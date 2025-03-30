@@ -11,7 +11,7 @@ import { Plus, Search, Filter } from "lucide-react";
 import { GiftList } from "@shared/schema";
 import { Skeleton } from "@/components/ui/skeleton";
 import GiftListForm from "@/components/gift-list-form";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 export default function MyLists() {
   const { user } = useAuth();
@@ -144,6 +144,7 @@ export default function MyLists() {
       
       <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
         <DialogContent className="sm:max-w-[600px]">
+          <DialogTitle className="sr-only">Create or Edit Gift List</DialogTitle>
           <GiftListForm 
             onSuccess={() => setIsFormOpen(false)}
           />

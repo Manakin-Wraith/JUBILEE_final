@@ -42,6 +42,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (user: User) => {
       queryClient.setQueryData(["/api/user"], user);
+      // Force a navigation to the dashboard
+      window.location.href = "/";
       toast({
         title: "Login successful",
         description: `Welcome back, ${user.displayName || user.username}!`,
@@ -63,6 +65,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onSuccess: (user: User) => {
       queryClient.setQueryData(["/api/user"], user);
+      // Force a navigation to the dashboard
+      window.location.href = "/";
       toast({
         title: "Registration successful",
         description: `Welcome to GiftWish, ${user.displayName || user.username}!`,
