@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { CalendarIcon, Gift, ChevronRight } from "lucide-react";
 import { useLocation } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DayProps, DayContent } from "react-day-picker";
 
 export default function Calendar() {
   const { user } = useAuth();
@@ -24,30 +25,61 @@ export default function Calendar() {
   
   // Filter lists for the selected date
   const listsForSelectedDate = date ? giftLists?.filter(list => {
-    return list.eventDate && isSameDay(new Date(list.eventDate), date);
+    if (!list.eventDate) return false;
+    
+    try {
+      const eventDate = new Date(list.eventDate);
+      return !isNaN(eventDate.getTime()) && isSameDay(eventDate, date);
+    } catch (error) {
+      console.error("Error comparing dates:", error, list.eventDate);
+      return false;
+    }
   }) : [];
   
   // Create a map of dates with events for the calendar highlighting
   const eventDates = giftLists?.reduce((dates, list) => {
     if (list.eventDate) {
-      const dateStr = format(new Date(list.eventDate), "yyyy-MM-dd");
-      dates[dateStr] = true;
+      try {
+        const eventDate = new Date(list.eventDate);
+        if (!isNaN(eventDate.getTime())) {
+          const dateStr = format(eventDate, "yyyy-MM-dd");
+          dates[dateStr] = true;
+        }
+      } catch (error) {
+        console.error("Error parsing list event date:", error, list.eventDate);
+      }
     }
     return dates;
   }, {} as Record<string, boolean>) || {};
   
-  // Custom day rendering for the calendar
-  const renderDay = (day: Date) => {
-    const dateStr = format(day, "yyyy-MM-dd");
-    const hasEvent = eventDates[dateStr];
-    
-    return (
-      <div className={`relative w-full h-full ${hasEvent ? 'font-medium' : ''}`}>
-        {day.getDate()}
-        {hasEvent && <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-primary rounded-full" />}
-      </div>
-    );
-  };
+  // Custom style for calendar - adds event dots without using custom Day components
+  const calendarStyles = giftLists?.reduce((styles, list) => {
+    if (list.eventDate) {
+      try {
+        const eventDate = new Date(list.eventDate);
+        if (!isNaN(eventDate.getTime())) {
+          // Create a unique class name for each event date
+          const dateKey = format(eventDate, "yyyy-MM-dd");
+          styles += `
+            .rdp-day_${dateKey} button::after {
+              content: '';
+              position: absolute;
+              bottom: 4px;
+              left: 50%;
+              transform: translateX(-50%);
+              width: 4px;
+              height: 4px;
+              background-color: var(--primary);
+              border-radius: 50%;
+            }
+          `;
+        }
+      } catch (error) {
+        console.error("Error parsing list event date:", error, list.eventDate);
+      }
+    }
+    return styles;
+  }, "") || "";
   
   return (
     <div className="min-h-screen flex flex-col">
@@ -68,15 +100,35 @@ export default function Calendar() {
                   {isLoading ? (
                     <Skeleton className="h-[350px] w-full" />
                   ) : (
-                    <CalendarComponent
-                      mode="single"
-                      selected={date}
-                      onSelect={setDate}
-                      className="rounded-md border"
-                      components={{
-                        Day: ({ day }) => renderDay(day),
-                      }}
-                    />
+                    <>
+                      <style>{calendarStyles}</style>
+                      <CalendarComponent
+                        mode="single"
+                        selected={date}
+                        onSelect={setDate}
+                        className="rounded-md border"
+                        modifiersClassNames={{
+                          selected: "bg-primary text-primary-foreground",
+                          today: "bg-accent text-accent-foreground",
+                        }}
+                        modifiers={{
+                          ...giftLists?.reduce((modifiers, list) => {
+                            if (list.eventDate) {
+                              try {
+                                const eventDate = new Date(list.eventDate);
+                                if (!isNaN(eventDate.getTime())) {
+                                  const dateKey = format(eventDate, "yyyy-MM-dd");
+                                  modifiers[dateKey] = eventDate;
+                                }
+                              } catch (error) {
+                                console.error("Error creating modifier:", error);
+                              }
+                            }
+                            return modifiers;
+                          }, {} as Record<string, Date>) || {}
+                        }}
+                      />
+                    </>
                   )}
                 </CardContent>
               </Card>
